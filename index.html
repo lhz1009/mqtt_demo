@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>物联网温度实时监控</title>
+  <!-- 引入本地 Chart.js 绘制实时折线图（不依赖外网 CDN） -->
+  <script src="chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      padding: 24px 32px;
+      width: 720px;
+    }
+    h1 {
+      font-size: 20px;
+      color: #333;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 16px;
+    }
+    .latest {
+      text-align: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: #e67e22;
+      margin-bottom: 20px;
+    }
+    .latest small { font-size: 14px; color: #999; font-weight: normal; }
+    canvas { width: 100% !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌡️ 物联网温度实时监控平台</h1>
+    <div class="status" id="status">WebSocket 连接中...</div>
+    <div class="latest" id="latest">-- <small>℃（最新温度）</small></div>
+    <canvas id="chart" height="300"></canvas>
+  </div>
+
+  <script>
+    // ===== 1. 初始化 Chart.js 折线图 =====
+    const MAX_POINTS = 20 // 图上最多保留最近 20 个数据点
+    const ctx = document.getElementById('chart').getContext('2d')
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [], // 时间标签
+        datasets: [{
+          label: '温度 (℃)',
+          data: [],
+          borderColor: '#e67e22',
+          backgroundColor: 'rgba(230,126,34,0.15)',
+          fill: true,
+          tension: 0.3,       // 曲线平滑
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,     // 关闭动画保证实时性
+        scales: {
+          y: {
+            suggestedMin: 18,
+            suggestedMax: 32,
+            title: { display: true, text: '温度 (℃)' }
+          },
+          x: { title: { display: true, text: '时间' } }
+        }
+      }
+    })
+
+    // ===== 2. 建立 WebSocket 连接，接收中转服务推送的数据 =====
+    const statusEl = document.getElementById('status')
+    const latestEl = document.getElementById('latest')
+    // 自动使用当前页面的主机和端口；若直接双击打开本文件（file://），则回退到固定地址
+    const wsUrl = location.host ? `ws://${location.host}` : 'ws://127.0.0.1:8080'
+    const ws = new WebSocket(wsUrl)
+
+    ws.onopen = () => { statusEl.textContent = '✅ WebSocket 已连接，等待数据...' }
+    ws.onclose = () => { statusEl.textContent = '❌ WebSocket 已断开' }
+    ws.onerror = () => { statusEl.textContent = '❌ WebSocket 连接失败，请确认 web-server.js 已启动' }
+
+    // ===== 3. 收到数据：更新最新温度文本 + 追加到折线图 =====
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data) // { temperature, time }
+
+      // 更新最新温度显示
+      latestEl.innerHTML = `${data.temperature} <small>℃（最新温度，更新时间 ${data.time}）</small>`
+
+      // 追加数据点，超出上限则移除最旧的点
+      chart.data.labels.push(data.time)
+      chart.data.datasets[0].data.push(data.temperature)
+      if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift()
+        chart.data.datasets[0].data.shift()
+      }
+      chart.update()
+    }
+  </script>
+</body>
+</html>

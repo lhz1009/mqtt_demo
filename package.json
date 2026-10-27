@@ -1,0 +1,23 @@
+{
+  "name": "mqtt_demo",
+  "version": "1.0.0",
+  "description": "物联网AI Agent开发实验：MQTT温度采集与Web实时可视化",
+  "scripts": {
+    "publisher": "node publisher.js",
+    "subscriber": "node subscriber.js",
+    "web": "node web-server.js"
+  },
+  "keywords": [
+    "mqtt",
+    "iot",
+    "websocket",
+    "chartjs"
+  ],
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "chart.js": "^4.6.1",
+    "mqtt": "^5.16.1",
+    "ws": "^8.22.0"
+  }
+}
